@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Spinner, Alert } from '../components/Feedback';
 import { Document, Page, pdfjs } from 'react-pdf';
+import { apiExportTeaserPdf } from '../api';
 
 /*
   PROFESSIONAL TEASER EXPORT & DOWNLOAD
@@ -78,28 +79,12 @@ function TeaserExport() {
     setPdfBlob(null);
     setSuccessMsg('');
     try {
-      const resp = await fetch(`/api/export/${encodeURIComponent(teaser_id)}`, {
-        method: 'GET',
-        headers: { Accept: 'application/pdf' }
-      });
-      if (resp.status === 404) {
-        setError('Teaser not found. Please go back and re-generate.');
-        setLoading(false);
-        setFetching(false);
-        return;
-      }
-      if (!resp.ok || resp.headers.get('content-type') !== 'application/pdf') {
-        // It may be a JSON error response
-        setError(`Failed to export teaser PDF (status ${resp.status}).`);
-        setLoading(false);
-        setFetching(false);
-        return;
-      }
-      // Download as blob
-      const blob = await resp.blob();
+      const blob = await apiExportTeaserPdf(teaser_id);
       setPdfBlob(blob);
     } catch (e) {
-      setError('Network error while fetching teaser PDF. Please try again.');
+      setError(
+        (e && e.message) || 'Network error while fetching teaser PDF. Please try again.'
+      );
     }
     setLoading(false);
     setFetching(false);

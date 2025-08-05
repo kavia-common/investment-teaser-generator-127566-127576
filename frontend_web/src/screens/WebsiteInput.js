@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiScrape } from '../api';
 
 // Helper: Validate URL to be secure and well-formed (http(s)://, domain, etc.)
 function isValidCompanyUrl(url) {
@@ -34,7 +35,6 @@ function WebsiteInput() {
     setStatus('idle');
     setError('');
 
-    // Client URL validation first
     if (!url || !isValidCompanyUrl(url)) {
       setError("Please enter a valid company website starting with https:// (no localhost, no IP address).");
       return;
@@ -43,44 +43,21 @@ function WebsiteInput() {
     setStatus('loading');
     setError('');
     try {
-      // POST {url} to backend /api/scrape endpoint
-      const resp = await fetch('/api/scrape', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim() })
-      });
-
-      if (resp.status === 422) {
-        setError("Validation error: make sure the URL is correct.");
-        setStatus('error');
-        return;
-      }
-      if (resp.status === 400) {
-        setError("URL is invalid or unreachable. Please check the company homepage and try again.");
-        setStatus('error');
-        return;
-      }
-      if (!resp.ok) {
-        setError(`Server error (${resp.status}). Please try again later.`);
-        setStatus('error');
-        return;
-      }
-
-      const data = await resp.json();
-      // data: { company: {...}, found: boolean }
+      // Use centralized API service call
+      const data = await apiScrape(url.trim());
       if (!data || !data.found) {
         setError("Could not extract company details from this website. Please try another URL.");
         setStatus('error');
         return;
       }
-
       setScraped(data.company);
       setStatus('success');
-      // Optionally, auto proceed to next step after a brief delay
+      // Optionally auto-proceed in the workflow
       // setTimeout(() => navigate('/upload'), 1200);
-
     } catch (e) {
-      setError("Network or server error. Please check your connection and try again.");
+      setError(
+        (e && e.message) || "Network or server error. Please check your connection and try again."
+      );
       setStatus('error');
     }
   };

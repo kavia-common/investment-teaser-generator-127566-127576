@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiUploadFiles } from "../api";
 
 // Utility to format file size nicely
 function formatBytes(bytes) {
@@ -103,58 +104,27 @@ function FileUpload() {
     setError("");
     setServerResponse(null);
 
-    // Compose multipart form-data
-    const formData = new FormData();
-    files.forEach((file) => formData.append("files", file));
-    // (You could optionally add query param company_id, if needed)
-
     try {
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", "/api/upload");
-
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
+      const response = await apiUploadFiles(
+        files,
+        null,
+        (percent, loaded, total) => {
           setUploadProgress({
-            total: event.total,
-            loaded: event.loaded,
-            percent: Math.round((event.loaded / event.total) * 100),
+            percent,
+            loaded,
+            total,
           });
         }
-      };
-
-      xhr.onreadystatechange = function () {
-        if (xhr.readyState === 4) {
-          setUploading(false);
-          if (xhr.status === 200) {
-            try {
-              setServerResponse(JSON.parse(xhr.responseText));
-              setFiles([]); // clear after upload
-              setError("");
-            } catch {
-              setError("Upload succeeded, but server returned invalid response.");
-              setServerResponse(null);
-            }
-          } else if (xhr.status === 400) {
-            setError("The server rejected one or more files. Please try again.");
-          } else if (xhr.status === 422) {
-            setError("Validation error during upload.");
-          } else {
-            setError(
-              `Upload failed: ${xhr.status || "Server Error"}`
-            );
-          }
-        }
-      };
-
-      xhr.onerror = () => {
-        setUploading(false);
-        setError("Network or server error. Please try again.");
-      };
-
-      xhr.send(formData);
+      );
+      setUploading(false);
+      setFiles([]); // clear file selection after upload
+      setError("");
+      setServerResponse(response);
     } catch (e) {
       setUploading(false);
-      setError("Unexpected error occurred during upload.");
+      setError(
+        (e && e.message) || "Unexpected error occurred during upload."
+      );
     }
   }
 

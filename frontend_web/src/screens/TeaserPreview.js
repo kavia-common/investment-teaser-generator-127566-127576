@@ -1,9 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiGenerateTeaser, apiUpdateTeaser } from "../api";
 
-/**
- * Helper to get session ID and company info from localStorage.
- */
+// Helper to get session ID and company from local storage.
 function getSessionAndCompany() {
   const session_id = window.localStorage.getItem("session_id");
   const companyProfile = window.localStorage.getItem("companyProfile");
@@ -14,59 +13,6 @@ function getSessionAndCompany() {
     company = null;
   }
   return { session_id, company };
-}
-
-/**
- * Helper: fetch teaser from /api/generate, POST {session_id}
- * @returns {Promise<{teaser: {teaser_id, title, content, ...}, status}>}
- */
-async function fetchTeaser(session_id) {
-  const resp = await fetch("/api/generate", {
-    method: "POST",
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session_id })
-  });
-  if (!resp.ok) {
-    let msg = `Failed to generate teaser. (${resp.status})`;
-    try {
-      const data = await resp.json();
-      if (data && data.detail) {
-        msg += ` ${data.detail}`;
-      }
-    } catch {}
-    throw new Error(msg);
-  }
-  const data = await resp.json();
-  if (!data.teaser) throw new Error("Teaser not found in response.");
-  return data;
-}
-
-/**
- * Helper: update teaser via /api/teaser/{teaser_id}/update
- * @param {string} teaser_id 
- * @param {string} title 
- * @param {string} content 
- * @returns {Promise<object>}
- */
-async function updateTeaser(teaser_id, title, content) {
-  const resp = await fetch(`/api/teaser/${teaser_id}/update`, {
-    method: "POST",
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ teaser_id, title, content })
-  });
-  if (!resp.ok) {
-    let msg = `Failed to update teaser. (${resp.status})`;
-    try {
-      const data = await resp.json();
-      if (data && data.detail) {
-        msg += ` ${data.detail}`;
-      }
-    } catch {}
-    throw new Error(msg);
-  }
-  const data = await resp.json();
-  if (!data.teaser) throw new Error("Teaser not found after update.");
-  return data;
 }
 
 // PUBLIC_INTERFACE
@@ -100,7 +46,7 @@ function TeaserPreview() {
       setLoading(false);
       return;
     }
-    fetchTeaser(session_id)
+    apiGenerateTeaser(session_id)
       .then(data => {
         if (!mounted) return;
         setTeaser(data.teaser);
@@ -136,7 +82,11 @@ function TeaserPreview() {
     setSaving(true);
     setError('');
     try {
-      const resp = await updateTeaser(teaser.teaser_id, editableTitle.trim(), editableContent.trim());
+      const resp = await apiUpdateTeaser(
+        teaser.teaser_id,
+        editableTitle.trim(),
+        editableContent.trim()
+      );
       setTeaser(resp.teaser);
       setStatus(resp.status || '');
       setEditableTitle(resp.teaser.title || "");
@@ -156,7 +106,7 @@ function TeaserPreview() {
     setError('');
     setStatus('pending');
     try {
-      const data = await fetchTeaser(session_id);
+      const data = await apiGenerateTeaser(session_id);
       setTeaser(data.teaser);
       setStatus(data.status);
       setEditableTitle(data.teaser.title || "");

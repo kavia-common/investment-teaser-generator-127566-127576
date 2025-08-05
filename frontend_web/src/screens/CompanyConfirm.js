@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiCompanyConfirm } from '../api';
 
 /**
  * Loads current company info from backend (/api/scrape has already run),
@@ -162,24 +163,7 @@ function CompanyConfirm() {
       return;
     }
     try {
-      // Prepare POST body (wrap in company object)
-      const payload = { company };
-      const resp = await fetch("/api/company/confirm", {
-        method: "POST",
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (resp.status === 422) {
-        setError("Validation error: Please check your input and try again.");
-        setSubmitting(false);
-        return;
-      }
-      if (!resp.ok) {
-        setError(`Server error (${resp.status}). Please try again later.`);
-        setSubmitting(false);
-        return;
-      }
-      const data = await resp.json();
+      const data = await apiCompanyConfirm(company);
       if (!data || !data.session_id) {
         setError("Unexpected response from backend.");
         setSubmitting(false);
@@ -189,7 +173,7 @@ function CompanyConfirm() {
       storeProfileAndSession(company, data.session_id);
       setTimeout(() => navigate("/teaser"), 600);
     } catch (e) {
-      setError("Network or server error. Please try again.");
+      setError((e && e.message) || "Network or server error. Please try again.");
     }
     setSubmitting(false);
   }
