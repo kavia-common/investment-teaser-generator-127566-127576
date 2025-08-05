@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Spinner, Alert } from '../components/Feedback';
+import { Document, Page, pdfjs } from 'react-pdf';
 
 /*
   PROFESSIONAL TEASER EXPORT & DOWNLOAD
@@ -10,7 +12,10 @@ import { useNavigate } from 'react-router-dom';
   - Provides robust loading and error handling UI
 */
 
-// Helper: Get session info and generated teaser (from localStorage, as in TeaserPreview.js)
+// Setup PDF.js worker from an external CDN for compatibility
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+
+/* Helper: Get session info and generated teaser (from localStorage, as in TeaserPreview.js) */
 function getTeaserInfo() {
   // Try to get latest teaser info (id, etc.) from localStorage set in previous steps.
   // This should match logic in TeaserPreview.js or be passed in location.state.
@@ -34,11 +39,6 @@ function getTeaserInfo() {
   return { teaser, teaser_id };
 }
 
-import { Document, Page, pdfjs } from 'react-pdf';
-
-// Setup PDF.js worker from an external CDN for compatibility
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
-
 // PUBLIC_INTERFACE
 function TeaserExport() {
   /**
@@ -51,6 +51,7 @@ function TeaserExport() {
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState('');
   const [pdfBlob, setPdfBlob] = useState(null);
+  const [successMsg, setSuccessMsg] = useState('');
   const [teaserTitle, setTeaserTitle] = useState('');
   const [teaserId, setTeaserId] = useState('');
   const downloadLinkRef = useRef(null);
@@ -75,6 +76,7 @@ function TeaserExport() {
     setLoading(true);
     setError('');
     setPdfBlob(null);
+    setSuccessMsg('');
     try {
       const resp = await fetch(`/api/export/${encodeURIComponent(teaser_id)}`, {
         method: 'GET',
@@ -113,7 +115,9 @@ function TeaserExport() {
       link.href = url;
       link.download = `${teaserTitle.replace(/[^a-z0-9]/gi,'_') || 'Teaser'}.pdf`;
       link.click();
+      setSuccessMsg("Download started! If the PDF doesn't open, check your downloads folder.");
       setTimeout(() => URL.revokeObjectURL(url), 3000);
+      setTimeout(() => setSuccessMsg(''), 2700);
     }
   }
 
@@ -130,8 +134,9 @@ function TeaserExport() {
     return (
       <div className="container" style={{ marginTop: 64, maxWidth: 500 }}>
         <h2>Export Investment Teaser</h2>
-        <div style={{ textAlign: 'center', padding: 40, color: '#888', fontSize: '1.13em' }}>
-          {fetching ? 'Fetching teaser PDF...' : 'Loading export interface...'}
+        <div style={{ textAlign: 'center', padding: 40, color: '#888', fontSize: '1.13em', }}>
+          <Spinner size={40} style={{ marginBottom: 18 }} />
+          <div>{fetching ? 'Fetching teaser PDF...' : 'Loading export interface...'}</div>
         </div>
       </div>
     );
@@ -141,17 +146,7 @@ function TeaserExport() {
     return (
       <div className="container" style={{ marginTop: 64, maxWidth: 500 }}>
         <h2>Export Investment Teaser</h2>
-        <div style={{
-          background: '#f9ecec',
-          color: '#b33a3a',
-          border: '1.4px solid #e2bcbc',
-          borderRadius: 7,
-          margin: '30px 0',
-          padding: 26,
-          textAlign: 'center'
-        }}>
-          {error}
-        </div>
+        <Alert type="error" style={{ margin: '30px 0', textAlign: 'center' }}>{error}</Alert>
         <div style={{ marginTop: 18 }}>
           <button className="btn" onClick={handleBack}>Back</button>
           <button className="btn" style={{ marginLeft: 10 }} onClick={handleRegenerate}>Try Again</button>
@@ -177,7 +172,9 @@ function TeaserExport() {
         {pdfBlob ? (
           <PDFPreview blob={pdfBlob} title={teaserTitle} />
         ) : (
-          <div style={{ padding: 34, color: '#888' }}>PDF content unavailable.</div>
+          <Alert type="info" style={{ padding: 34, color: '#888' }}>
+            PDF content unavailable.
+          </Alert>
         )}
       </div>
       <div style={{ margin: '24px 0', textAlign: 'center' }}>
@@ -191,6 +188,7 @@ function TeaserExport() {
           <span role="img" aria-label="download" style={{ marginRight: 8 }}>⬇️</span>
           Download PDF
         </button>
+        {successMsg && <Alert type="success" style={{ marginTop: 14 }}>{successMsg}</Alert>}
       </div>
       <div style={{ marginTop: 20 }}>
         <button className="btn" type="button" onClick={handleBack}>
